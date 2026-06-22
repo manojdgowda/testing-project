@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FirebaseService } from './service/firebase.service';
 
 type Screen =
@@ -19,6 +19,17 @@ type Screen =
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit, OnDestroy {
+
+  @ViewChild('bgAudio') bgAudio!: ElementRef<HTMLAudioElement>;
+
+  musicPlaying = false;
+  private musicStartedOnce = false;
+
+  memoryAutoTimer: any;
+  storyDuration = 9000;
+  loadingText = 'Creating her little universe...';
+  loadingInterval: any;
+
   birthdayStart = new Date('2025-01-01T00:00:00+05:30');
   maxUsageSeconds = 30 * 60;
 
@@ -76,15 +87,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // Replace these with your own memory photos later, for example assets/her-photo-1.jpg.
   memoryImages = [
-    'assets/peace-countdown.jpg',
-    'assets/peace-promise.jpg',
-    'assets/peace-gift.jpg',
-    'assets/peace-wish.jpg',
-    'assets/peace-reasons.jpg',
-    'assets/peace-game.jpg',
-    'assets/peace-feedback.jpg',
-    'assets/peace-expired.jpg',
-    'assets/peace-memory.jpg',
+    'assets/peace-countdown1.jpg',
+    'assets/peace-promise1.jpg',
+    'assets/peace-gift1.jpg',
+    'assets/peace-wish1.jpg',
+    'assets/peace-reasons1.jpg',
+    'assets/peace-game1.jpg',
+    'assets/peace-feedback1.jpg',
+    'assets/peace-expired1.jpg',
+    'assets/peace-memory1.jpg',
     'assets/peace-final.jpg'
   ];
 
@@ -125,6 +136,19 @@ export class AppComponent implements OnInit, OnDestroy {
   constructor(private firebase: FirebaseService) {}
 
   async ngOnInit() {
+    const messages = [
+      'Collecting memories...',
+      'Writing feelings...',
+      'Preparing surprises...',
+      'Almost ready...'
+    ];
+
+    let i = 0;
+
+    this.loadingInterval = setInterval(() => {
+      this.loadingText = messages[i];
+      i = (i + 1) % messages.length;
+    }, 1200);
     document.addEventListener('visibilitychange', this.privacyHandler);
 
     try {
@@ -138,6 +162,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.countdownTimer = setInterval(() => this.checkTime(), 1000);
     this.checkTime();
+    clearInterval(this.loadingInterval);
     this.isLoading = false;
   }
 
@@ -146,11 +171,52 @@ export class AppComponent implements OnInit, OnDestroy {
     clearInterval(this.usageTimer);
     clearInterval(this.typeTimer);
     document.removeEventListener('visibilitychange', this.privacyHandler);
+    this.bgAudio?.nativeElement?.pause();
   }
 
   privacyHandler = () => {
     document.body.classList.toggle('privacy-blur', document.hidden);
   };
+
+  // Browsers block audio autoplay until the user interacts with the page.
+  // This fires once on the very first tap/click anywhere and quietly starts
+  // the music, so the person never has to think about it unless they want
+  // to turn it off (or back on) using the toggle button.
+  @HostListener('document:click')
+  @HostListener('document:touchstart')
+  onFirstUserInteraction() {
+    if (this.musicStartedOnce || this.isLoading) {
+      return;
+    }
+    // this.musicStartedOnce = true;
+    this.playMusic();
+  }
+
+  playMusic() {
+    const audio = this.bgAudio?.nativeElement;
+    if (!audio) {
+      return;
+    }
+    audio.volume = 0.45;
+    audio.play()
+      .then(() => (this.musicPlaying = true))
+      .catch(() => (this.musicPlaying = false));
+  }
+
+  toggleMusic() {
+    const audio = this.bgAudio?.nativeElement;
+    if (!audio) {
+      return;
+    }
+    this.musicStartedOnce = true;
+
+    if (this.musicPlaying) {
+      audio.pause();
+      this.musicPlaying = false;
+    } else {
+      this.playMusic();
+    }
+  }
 
   async loadState() {
     const data = await this.firebase.getData();
@@ -243,13 +309,32 @@ export class AppComponent implements OnInit, OnDestroy {
 
     if (screen === 'memory') {
       this.memoryIndex = 0;
-      this.typeText(this.memoryTexts[this.memoryIndex]);
+      this.typeText(this.memoryTexts[0]);
+      this.startMemoryStory();
     }
+
+    // if (screen === 'memory') {
+    //   this.memoryIndex = 0;
+    //   this.typeText(this.memoryTexts[this.memoryIndex]);
+    // }
 
     if (screen === 'reasons') {
       this.reasonIndex = 0;
       this.typeText(this.reasons[this.reasonIndex]);
     }
+  }
+
+  startMemoryStory() {
+    clearInterval(this.memoryAutoTimer);
+
+    this.memoryAutoTimer = setInterval(() => {
+      if (this.screen !== 'memory') {
+        clearInterval(this.memoryAutoTimer);
+        return;
+      }
+
+      this.nextMemory();
+    }, this.storyDuration);
   }
 
   typeText(text: string) {
@@ -267,15 +352,26 @@ export class AppComponent implements OnInit, OnDestroy {
     }, 55);
   }
 
+  giftOpening = false;
   openGift() {
+    this.giftOpening = true;
     this.burst();
-    setTimeout(() => this.go('wish'), 900);
+
+    setTimeout(() => {
+      this.go('wish');
+      this.giftOpening = false;
+    }, 1500);
   }
 
+  
+
   nextMemory() {
+    clearInterval(this.memoryAutoTimer);
+
     if (this.memoryIndex < this.memoryImages.length - 1) {
       this.memoryIndex++;
       this.typeText(this.memoryTexts[this.memoryIndex]);
+      this.startMemoryStory();
     } else {
       this.go('reasons');
     }

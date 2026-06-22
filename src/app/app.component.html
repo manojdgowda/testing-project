@@ -1,12 +1,26 @@
 <div class="loading" *ngIf="isLoading">
   <div class="loader-scene">
     <div class="loader-ring"><span>🌸</span></div>
-    <p class="label">creating her little universe</p>
-    <p>Preparing something unforgettable...</p>
+    <p>{{ loadingText }}</p>
+    <!-- <p class="label">creating her little universe</p>
+    <p>Preparing something unforgettable...</p> -->
   </div>
 </div>
 
 <main class="app" *ngIf="!isLoading" [attr.data-screen]="screen">
+
+  <!-- ══════════════════════════════════════════════════════
+       BACKGROUND MUSIC TOGGLE
+  ══════════════════════════════════════════════════════ -->
+  <audio #bgAudio src="assets/bg-music.mp3" loop preload="auto"></audio>
+
+  <button
+    class="music-toggle"
+    [class.playing]="musicPlaying"
+    (click)="toggleMusic()"
+    [attr.aria-label]="musicPlaying ? 'Pause background music' : 'Play background music'">
+    <span class="music-icon">{{ musicPlaying ? '🎵' : '🔇' }}</span>
+  </button>
 
   <!-- Ambient background visible on non-immersive screens -->
   <div class="ambient-scene" *ngIf="screen !== 'memory' && screen !== 'final'">
@@ -64,7 +78,7 @@
     <h1>Tap the<br><em>gift.</em></h1>
     <p class="soft">Inside this is not a gift. It is a feeling.</p>
 
-    <button class="gift-box" (click)="openGift()">
+    <button class="gift-box" [class.opening]="giftOpening" (click)="openGift()">
       <span>🎁</span>
     </button>
 
@@ -90,11 +104,11 @@
   ══════════════════════════════════════════════════════ -->
   <section class="memory-screen" *ngIf="screen === 'memory'" (click)="nextMemory()">
 
-    <img [src]="sceneImages.memory" class="memory-peace-bg" alt="" />
+    <img [src]="memoryImages[memoryIndex]" class="memory-peace-bg" alt="" />
 
-    <div class="memory-photo-stage">
+    <!-- <div class="memory-photo-stage">
       <img [src]="memoryImages[memoryIndex]" class="memory-img" alt="Birthday memory" />
-    </div>
+    </div> -->
 
     <div class="falling-layer falling-layer--front" aria-hidden="true">
       <span *ngFor="let item of fallingItems"
@@ -109,9 +123,17 @@
     <div class="memory-vignette"></div>
 
     <!-- story progress bar -->
-    <div class="memory-progress">
+    <!-- <div class="memory-progress">
       <span *ngFor="let img of memoryImages; let i = index"
             [class.active]="i <= memoryIndex"></span>
+    </div> -->
+
+    <div class="memory-progress">
+      <span
+        *ngFor="let img of memoryImages; let i = index"
+        [class.active]="i < memoryIndex"
+        [class.current]="i === memoryIndex">
+      </span>
     </div>
 
     <!-- content anchored to bottom-left like a film caption -->
@@ -200,6 +222,9 @@
        FINAL — full-bleed like memory screen
   ══════════════════════════════════════════════════════ -->
   <section class="final-screen" *ngIf="screen === 'final'">
+    <div class="memory-stamp">
+      Made specially for you ❤️
+    </div>
 
     <img [src]="sceneImages.final" class="final-bg" alt="Final birthday memory" />
     <div class="final-overlay"></div>
@@ -218,7 +243,7 @@
       <div class="final-letter">
         <p>
           I don't know if this website is perfect, but every second I spent
-          making it had only one thought — <em>you.</em>
+          making it had only one thought — <span class="" style="font-weight: 900 !important; " >you.</span>
         </p>
         <p>
           I wanted this birthday to feel different. Not just wishes, not just
